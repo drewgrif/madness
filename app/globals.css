@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --orange: #f97316;
+    --orange-light: #fed7aa;
+    --east: #3b82f6;
+    --west: #ef4444;
+    --south: #22c55e;
+    --midwest: #a855f7;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background-color: #f8fafc;
+    color: #0f172a;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { height: 6px; width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+}
+
+/* Bracket connector lines */
+.bracket-connector-left {
+  position: relative;
+}
+.bracket-connector-left::after {
+  content: '';
+  position: absolute;
+  right: -1px;
+  top: 25%;
+  height: 50%;
+  width: 1px;
+  background: #cbd5e1;
+  pointer-events: none;
+}
+
+.bracket-connector-right {
+  position: relative;
+}
+.bracket-connector-right::after {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 25%;
+  height: 50%;
+  width: 1px;
+  background: #cbd5e1;
+  pointer-events: none;
+}
+
+/* Team slot hover effect */
+.team-slot {
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+.team-slot:hover:not(.locked) {
+  cursor: pointer;
+}
+.team-slot.selected {
+  font-weight: 600;
+}
+.team-slot.eliminated {
+  opacity: 0.35;
+  text-decoration: line-through;
+}
