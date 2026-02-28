@@ -33,12 +33,6 @@ export default function BracketView({
     setPicks(m);
   }, [initialPicks]);
 
-  const gamesByNumber = useMemo(() => {
-    const m = new Map<number, GameWithTeams>();
-    for (const g of games) m.set(g.game_number, g);
-    return m;
-  }, [games]);
-
   // Propagate picks through the bracket visually (round by round)
   const resolvedGames = useMemo(() => {
     const resolved = new Map<number, GameWithTeams>();
@@ -83,10 +77,17 @@ export default function BracketView({
     return Array.from(resolved.values());
   }, [games, picks]);
 
+  // Resolved games indexed by number — used for pick validation in later rounds
+  const resolvedByNumber = useMemo(() => {
+    const m = new Map<number, GameWithTeams>();
+    for (const g of resolvedGames) m.set(g.game_number, g);
+    return m;
+  }, [resolvedGames]);
+
   const handlePick = useCallback((gameNumber: number, teamId: number) => {
     if (isLocked || !userId) return;
 
-    const game = gamesByNumber.get(gameNumber);
+    const game = resolvedByNumber.get(gameNumber);
     if (!game) return;
     if (teamId !== game.team1_id && teamId !== game.team2_id) return;
 
@@ -107,7 +108,7 @@ export default function BracketView({
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => savePicks(), 800);
     setSaved(false);
-  }, [isLocked, userId, gamesByNumber, tournament.id]);
+  }, [isLocked, userId, resolvedByNumber, tournament.id]);
 
   const savePicks = async () => {
     setSaving(true);
