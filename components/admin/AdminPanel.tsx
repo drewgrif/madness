@@ -7,13 +7,24 @@ interface AdminPanelProps {
   initialTournament: Tournament | null;
 }
 
-type Tab = 'tournament' | 'teams' | 'bracket' | 'results';
+type Tab = 'tournament' | 'teams' | 'bracket' | 'results' | 'users';
+
+interface AdminUser {
+  id: number;
+  username: string;
+  email: string;
+  role: string;
+  pick_count: number;
+  total_points: number | null;
+  max_possible: number | null;
+}
 
 export default function AdminPanel({ initialTournament }: AdminPanelProps) {
   const [tab, setTab] = useState<Tab>('tournament');
   const [tournament, setTournament] = useState<Tournament | null>(initialTournament);
   const [teams, setTeams] = useState<Team[]>([]);
   const [games, setGames] = useState<GameWithTeams[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
 
@@ -36,10 +47,16 @@ export default function AdminPanel({ initialTournament }: AdminPanelProps) {
     setGames(await r.json());
   };
 
+  const loadUsers = async (tid: number) => {
+    const r = await fetch(`/api/admin/users?tournament_id=${tid}`);
+    if (r.ok) setUsers(await r.json());
+  };
+
   useEffect(() => {
     if (tournament) {
       loadGames(tournament.id);
       loadTeamsData(tournament.id);
+      loadUsers(tournament.id);
     }
   }, [tournament?.id]);
 
@@ -130,6 +147,23 @@ export default function AdminPanel({ initialTournament }: AdminPanelProps) {
     else flash(data.error, true);
   };
 
+  const clearWinner = async (gameNumber: number) => {
+    if (!tournament) return;
+    const r = await fetch(`/api/games/${tournament.id}/${gameNumber}/result`, { method: 'DELETE' });
+    const data = await r.json();
+    if (r.ok) { flash('Result cleared.'); loadGames(tournament.id); }
+    else flash(data.error, true);
+  };
+
+  const deleteBracket = async (userId: number, username: string) => {
+    if (!tournament) return;
+    if (!confirm(`Delete all picks for ${username}? This cannot be undone.`)) return;
+    const r = await fetch(`/api/admin/users/${userId}/picks?tournament_id=${tournament.id}`, { method: 'DELETE' });
+    const data = await r.json();
+    if (r.ok) { flash(`Bracket deleted for ${username}.`); loadUsers(tournament.id); }
+    else flash(data.error, true);
+  };
+
   const roundGames = (round: number) =>
     games.filter(g => g.round === round).sort((a, b) => a.game_number - b.game_number);
 
@@ -138,6 +172,7 @@ export default function AdminPanel({ initialTournament }: AdminPanelProps) {
     { id: 'teams', label: `Teams (${teams.length}/64)` },
     { id: 'bracket', label: 'Bracket' },
     { id: 'results', label: 'Results' },
+    { id: 'users', label: `Users (${users.length})` },
   ];
 
   return (
@@ -342,6 +377,74 @@ export default function AdminPanel({ initialTournament }: AdminPanelProps) {
         </div>
       )}
 
+      {/* ── USERS TAB ── */}
+      {tab === 'users' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-slate-500">{users.length} registered users</p>
+            {tournament && (
+              <button
+                onClick={() => loadUsers(tournament.id)}
+                className="px-3 py-1.5 text-xs border border-slate-200 text-slate-600 hover:border-slate-400 rounded-lg transition-colors"
+              >
+                Refresh
+              </button>
+            )}
+          </div>
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50">
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500">Username</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500">Email</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500">Picks</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500">Score</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500">Max</th>
+                  <th className="px-4 py-2.5" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {users.map(u => (
+                  <tr key={u.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-2.5 font-medium text-slate-800">
+                      {u.username}
+                      {u.role === 'admin' && (
+                        <span className="ml-2 text-xs text-orange-500 font-normal">admin</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-slate-500 text-xs">{u.email}</td>
+                    <td className="px-4 py-2.5 text-right text-slate-600">{u.pick_count}</td>
+                    <td className="px-4 py-2.5 text-right font-medium text-slate-800">
+                      {u.total_points ?? <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-slate-500">
+                      {u.max_possible ?? <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="px-4 py-2.5 text-right">
+                      {u.pick_count > 0 && (
+                        <button
+                          onClick={() => deleteBracket(u.id, u.username)}
+                          className="text-xs text-slate-400 hover:text-red-500 transition-colors"
+                        >
+                          Delete bracket
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {users.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-300 italic">
+                      No users yet
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* ── RESULTS TAB ── */}
       {tab === 'results' && (
         <div className="space-y-6">
@@ -388,7 +491,13 @@ export default function AdminPanel({ initialTournament }: AdminPanelProps) {
                         </button>
                       </div>
                       {g.winner_id && (
-                        <span className="text-xs text-green-500">✓</span>
+                        <button
+                          onClick={() => clearWinner(g.game_number)}
+                          className="text-xs text-slate-400 hover:text-red-500 transition-colors ml-1"
+                          title="Clear result"
+                        >
+                          ✓ clear
+                        </button>
                       )}
                     </div>
                   ))}

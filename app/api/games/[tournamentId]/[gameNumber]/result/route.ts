@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { recordResult } from '@/lib/scoring';
+import { recordResult, clearResult } from '@/lib/scoring';
 
 export async function PUT(
   req: NextRequest,
@@ -15,6 +15,23 @@ export async function PUT(
 
   try {
     await recordResult(parseInt(tournamentId), parseInt(gameNumber), winner_id);
+    return NextResponse.json({ ok: true });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Error';
+    return NextResponse.json({ error: msg }, { status: 400 });
+  }
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ tournamentId: string; gameNumber: string }> }
+) {
+  const session = await getSession();
+  if (session?.role !== 'admin') return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+
+  const { tournamentId, gameNumber } = await params;
+  try {
+    await clearResult(parseInt(tournamentId), parseInt(gameNumber));
     return NextResponse.json({ ok: true });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Error';

@@ -36,6 +36,33 @@ export async function recordResult(tournamentId: number, gameNumber: number, win
   await recalculateScores(tournamentId);
 }
 
+export async function clearResult(tournamentId: number, gameNumber: number) {
+  const games = await sql`
+    SELECT * FROM games WHERE tournament_id = ${tournamentId} AND game_number = ${gameNumber}
+  `;
+  const game = games[0] as (GameRow & { winner_id: number | null }) | undefined;
+  if (!game) throw new Error('Game not found');
+
+  await sql`UPDATE games SET winner_id = NULL
+    WHERE tournament_id = ${tournamentId} AND game_number = ${gameNumber}`;
+
+  // Remove propagated team from the next game slot
+  if (game.next_game) {
+    if (game.next_slot === 1) {
+      await sql`UPDATE games SET team1_id = NULL
+        WHERE tournament_id = ${tournamentId} AND game_number = ${game.next_game}`;
+    } else {
+      await sql`UPDATE games SET team2_id = NULL
+        WHERE tournament_id = ${tournamentId} AND game_number = ${game.next_game}`;
+    }
+  }
+
+  await sql`UPDATE picks SET is_correct = NULL
+    WHERE tournament_id = ${tournamentId} AND game_number = ${gameNumber}`;
+
+  await recalculateScores(tournamentId);
+}
+
 export async function recalculateScores(tournamentId: number) {
   const users = (await sql`
     SELECT DISTINCT user_id FROM picks WHERE tournament_id = ${tournamentId}
