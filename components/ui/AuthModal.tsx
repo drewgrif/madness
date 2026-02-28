@@ -37,8 +37,9 @@ export default function AuthModal({ onSuccess }: AuthModalProps) {
       } else {
         onSuccess(data.user);
       }
-    } catch {
-      setError('Network error');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(`Network error: ${msg}`);
     } finally {
       setLoading(false);
     }
